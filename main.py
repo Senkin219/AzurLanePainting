@@ -89,7 +89,6 @@ def get_canvas(mesh, texture, size):
             new_bbox = (0, 0, size["x"], size["y"])
         canvas = canvas.crop(new_bbox)
     canvas = canvas.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-    del patches
     return canvas
 
 
@@ -116,7 +115,6 @@ def get_dependencies():
     # Returns dependency map linking asset files to their texture files.
     env = UnityPy.load(str(Path(root, "dependencies")))
     id, primary = get_primary(env.assets[0])
-    del env
     dependencies = {}
     for m_Value in primary["m_Values"]:
         m_FileName = re.sub(r"^.*?(/painting/.*)?$", r"\g<1>", m_Value["m_FileName"])[1:]
@@ -131,7 +129,7 @@ def get_dependencies():
     return dependencies
 
 
-def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
+def get_layers(asset, textures, layers={}, id=None, parent=None):
     if id is None:
         id, gameobject = get_primary(asset)
     else:
@@ -142,6 +140,8 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
     if gameobject["m_Name"] == "shadow":
         return
     if gameobject["m_Name"] == "Touch":
+        return
+    if gameobject["m_Name"] == "hx":
         return
     if "m_Component" not in gameobject:
         return
@@ -160,9 +160,6 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
             if parent == None:
                 entry["scale"] = {"x": 1, "y": 1, "z": 1}
             entry["delta"] = tree["m_SizeDelta"]
-            # jinluhao, dafeng_idol
-            if gameobject["m_Name"] == "layers":
-                entry["delta"] = {"x": 0, "y": 0}
             entry["pivot"] = tree["m_Pivot"]
 
             # calculate true m_LocalPosition
@@ -171,23 +168,18 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
             anchorpos = tree["m_AnchoredPosition"]
             if parent is None:
                 entry["bound"] = entry["delta"]
-                entry["anchor"] = {"x": entry["delta"]["x"] * entry["pivot"]["x"], "y": entry["delta"]["y"] * entry["pivot"]["y"]}
-                entry["position"] = anchorpos
+                entry["position"] = {"x": entry["delta"]["x"] * entry["pivot"]["x"] + anchorpos["x"], "y": entry["delta"]["y"] * entry["pivot"]["y"] + anchorpos["y"]}
             else:
                 pl = layers[parent]
                 entry["bound"] = {
-                    "x": pl["bound"]["x"] * (anchormax["x"] - anchormin["x"]) + max(entry["delta"]["x"], 0) * entry["scale"]["x"],
-                    "y": pl["bound"]["y"] * (anchormax["y"] - anchormin["y"]) + max(entry["delta"]["y"], 0) * entry["scale"]["y"],
+                    "x": (pl["bound"]["x"] * (anchormax["x"] - anchormin["x"]) + entry["delta"]["x"]) * entry["scale"]["x"],
+                    "y": (pl["bound"]["y"] * (anchormax["y"] - anchormin["y"]) + entry["delta"]["y"]) * entry["scale"]["y"],
                 }  # bounding box width and height
-                entry["anchor"] = {
-                    "x": pl["bound"]["x"] * (anchormax["x"] - anchormin["x"]) * entry["pivot"]["x"] + pl["bound"]["x"] * anchormin["x"],
-                    "y": pl["bound"]["x"] * (anchormax["y"] - anchormin["y"]) * entry["pivot"]["y"] + pl["bound"]["y"] * anchormin["y"],
-                }  # bounding box anchor in relation to box corner
                 entry["position"] = {
-                    "x": entry["anchor"]["x"] - pl["anchor"]["x"] + anchorpos["x"],
-                    "y": entry["anchor"]["y"] - pl["anchor"]["y"] + anchorpos["y"],
-                }  # anchor in relation to parent anchor
-            if gameobject["m_Name"] == "face" and "parent" not in layers[parent]:
+                    "x": anchorpos["x"] + pl["bound"]["x"] * (anchormax["x"] - anchormin["x"]) * entry["pivot"]["x"] + pl["bound"]["x"] * anchormin["x"] - pl["bound"]["x"] * pl["pivot"]["x"],
+                    "y": anchorpos["y"] + pl["bound"]["y"] * (anchormax["y"] - anchormin["y"]) * entry["pivot"]["y"] + pl["bound"]["y"] * anchormin["y"] - pl["bound"]["y"] * pl["pivot"]["y"],
+                }  # pivot in relation to parent pivot
+            if (gameobject["m_Name"] == "face" and "parent" not in layers[parent]) or (gameobject["m_Name"] == "face_sub" and layers[parent]["name"] == "face"):
                 entry["size"] = entry["delta"]
             children = tree["m_Children"]
         # bisimaiz
@@ -206,7 +198,7 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
             sprite_id = tree["m_Sprite"]["m_PathID"]
             entry["size"] = tree["mRawSpriteSize"]
         # xiefeierde_3
-        elif "m_Sprite" in tree and entry["name"] != "face":
+        elif "m_Sprite" in tree and entry["name"] != "face" and entry["name"] != "face_sub":
             entry["isImage"] = True
             mesh_id = 0
             sprite_id = tree["m_Sprite"]["m_PathID"]
@@ -236,7 +228,7 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
             rt_id = rt_ptr["m_PathID"]
             rt = asset[rt_id].read_typetree()
             child_id = rt["m_GameObject"]["m_PathID"]
-            get_layers(asset, textures, layers, child_id, id, face)
+            get_layers(asset, textures, layers, child_id, id)
 
 
 def wrapped(painting_name, id_dict={}, debug=False):
@@ -253,15 +245,15 @@ def wrapped(painting_name, id_dict={}, debug=False):
 
     env = UnityPy.load(str(Path(root, "painting", painting_name)))
     layers = {}
-    get_layers(env.assets[0], textures, layers, face=None)
+    get_layers(env.assets[0], textures, layers)
 
     def get_position_box(layer, x=None, y=None, w=None, h=None):
         # scale: xianggelila_3
         if x is None or y is None:
-            x = layer["delta"]["x"] * layer["pivot"]["x"] * layer["scale"]["x"] - layer["position"]["x"]
-            y = layer["delta"]["y"] * layer["pivot"]["y"] * layer["scale"]["x"] - layer["position"]["y"]
-            w = layer["delta"]["x"] * layer["scale"]["x"]
-            h = layer["delta"]["y"] * layer["scale"]["x"]
+            x = layer["bound"]["x"] * layer["pivot"]["x"] - layer["position"]["x"]
+            y = layer["bound"]["y"] * layer["pivot"]["y"] - layer["position"]["y"]
+            w = layer["bound"]["x"]
+            h = layer["bound"]["y"]
         if "parent" in layer:
             parent = layers[layer["parent"]]
             # w *= parent['scale']['x']
@@ -386,6 +378,9 @@ def wrapped(painting_name, id_dict={}, debug=False):
         elif layer["name"] == "face":
             canvas = "face"
             canvases.append([canvas, layer])
+        elif layer["name"] == "face_sub":
+            canvas = "face_sub"
+            canvases.append([canvas, layer])
 
     os.makedirs("output2", exist_ok=True)
     face0_flag = False
@@ -402,12 +397,18 @@ def wrapped(painting_name, id_dict={}, debug=False):
             id_dict.get(painting_name.replace("_wjz", "").replace("_hx", "").replace("_ex", "").replace("_idolns", "_idol").replace("_npc", "__nnpc").replace("_n", ""), "999999") + "_" + painting_name
         )
     if len(faces.assets) != 0:
+        face_sub = {}
+        for value in faces.assets[0].values():
+            if value.type.name == "Texture2D":
+                sub = value.read()
+                if "_sub" in sub.name:
+                    face_sub[sub.name] = sub
         for value in faces.assets[0].values():
             if value.type.name == "Texture2D":
                 face = value.read()
                 if face.name == "0":
                     face0_flag = True
-                if debug and face.name != "1":
+                if ("_sub" in face.name) or (debug and face.name != "1"):
                     continue
                 copy = master.copy()
                 for canvaslayer in canvases:
@@ -422,6 +423,18 @@ def wrapped(painting_name, id_dict={}, debug=False):
                                 custom_round((layer["box"][3] - layer["box"][1]) or canvas.height),
                             )
                         ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                    # xiaoyue_2
+                    elif canvas == "face_sub":
+                        if face_sub.get(face.name + "_sub"):
+                            canvas = face_sub.get(face.name + "_sub").image.convert("RGBA")
+                            canvas = canvas.resize(
+                                (
+                                    custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
+                                    custom_round((layer["box"][3] - layer["box"][1]) or canvas.height),
+                                )
+                            ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                        else:
+                            continue
                     # qiye_4
                     if copy.width < canvas.width + custom_round(layer["box"][0]) or copy.height < canvas.height + custom_round(layer["box"][1]):
                         new_copy = Image.new("RGBA", (max(copy.width, canvas.width + custom_round(layer["box"][0])), max(copy.height, canvas.height + custom_round(layer["box"][1]))))
@@ -434,14 +447,13 @@ def wrapped(painting_name, id_dict={}, debug=False):
                     if bbox:
                         copy = copy.crop(bbox)
                 copy.save("output2/{}.png".format(filename + "." + face.name))
-                del copy
     else:
         print(painting_name, "no face found\n")
         face0_flag = True
     for canvaslayer in canvases:
         layer = canvaslayer[1]
         canvas = canvaslayer[0]
-        if canvas == "face":
+        if canvas == "face" or canvas == "face_sub":
             continue
         if master.width < canvas.width + custom_round(layer["box"][0]) or master.height < canvas.height + custom_round(layer["box"][1]):
             new_master = Image.new("RGBA", (max(master.width, canvas.width + custom_round(layer["box"][0])), max(master.height, canvas.height + custom_round(layer["box"][1]))))
@@ -453,13 +465,6 @@ def wrapped(painting_name, id_dict={}, debug=False):
         master.save("output2/{}.png".format(filename))
     else:
         master.save("output2/{}.png".format(filename + ".0"))
-
-    del master
-    del layers
-    del canvases
-    del depmap
-    del env
-    del textures
 
 
 if __name__ == "__main__":
