@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import math
 import json
+from argparse import ArgumentParser
 
 root = "AssetBundles"
 
@@ -95,7 +96,7 @@ def stitch_patches(patches, v, mesh, size):
         b = a + 4
         xmin = min(x for x, y in v[a:b])
         ymin = min(y for x, y in v[a:b])
-        # yanusi_4
+        # yanusi_4_n
         if canvas.width < patch.width + custom_round(
             xmin + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["x"] - mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["x"]
         ) or canvas.height < patch.height + custom_round(-ymin - patch.height + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["y"] + mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["y"]):
@@ -260,7 +261,7 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
             texture_id = sprite["m_RD"]["texture"]["m_PathID"]
             entry["texture"] = texas[texture_id].read()
         except:
-            print("missing texture file")
+            print(entry["name"], "missing texture file")
     if parent is not None:
         entry["parent"] = parent
 
@@ -278,7 +279,13 @@ def wrapped(painting_name, id_dict={}, debug=False):
     print("\nstart", painting_name)
 
     depmap = get_dependencies()
-    textures = UnityPy.load(*["{}/{}".format(root, fn) for fn in depmap["painting/{}".format(painting_name)]])
+    depfiles = depmap.get("painting/{}".format(painting_name))
+    depfiles_ex = [
+        "painting/{}".format(f.name)
+        for f in Path(root, "painting").iterdir()
+        if (f.is_file() and painting_name.replace("_hx", "").replace("_npc", "__nnpc").replace("_n", "").replace("_ex", "").replace("_idolns", "_idol").replace("_wjz", "") in f.name)
+    ]
+    textures = UnityPy.load(*["{}/{}".format(root, fn) for fn in list(set(depfiles or []) | set(depfiles_ex))])
 
     env = UnityPy.load(str(Path(root, "painting", painting_name)))
     layers = {}
@@ -494,20 +501,27 @@ def wrapped(painting_name, id_dict={}, debug=False):
 
 
 if __name__ == "__main__":
-    import multiprocessing
-    from functools import partial
+    parser = ArgumentParser()
+    parser.add_argument("file", nargs="?", help="the name of the painting assetbundle file")
+    args = parser.parse_args()
 
     id_dict = get_id_dict()
-    paintingfiles = []
-    for root2, dirs, files in os.walk(Path(root, "painting")):
-        for file in files:
-            if file[-4:] != "_tex":
-                paintingfiles.append(file)
 
     debug = False
     mp = False
-    if mp:
-        multiprocessing.Pool().map(partial(wrapped, id_dict=id_dict, debug=debug), paintingfiles)
+
+    if args.file:
+        wrapped(args.file, id_dict, debug)
     else:
-        for file in paintingfiles:
-            wrapped(file, id_dict, debug)
+        paintingfiles = []
+        for root2, dirs, files in os.walk(Path(root, "painting")):
+            for file in files:
+                if file[-4:] != "_tex":
+                    paintingfiles.append(file)
+        if mp:
+            import multiprocessing
+            from functools import partial
+            multiprocessing.Pool().map(partial(wrapped, id_dict=id_dict, debug=debug), paintingfiles)
+        else:
+            for file in paintingfiles:
+                wrapped(file, id_dict, debug)
