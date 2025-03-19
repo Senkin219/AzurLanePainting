@@ -47,10 +47,9 @@ def custom_round(n):
         return round(n)
 
 
-def get_vertices(mesh, texture):
-    v_raw = []  # mesh vertices
-    vt_raw = []  # texture vertices
-    # unused: g (group names), f (faces)
+def get_canvas(mesh, texture, size):
+    v_raw = []
+    vt_raw = []
     for line in mesh.export().splitlines():
         if line.startswith("v "):
             vertex = line.split(" ")[1:]
@@ -59,61 +58,25 @@ def get_vertices(mesh, texture):
             vertex = line.split(" ")[1:]
             vt_raw.append([float(n) for n in vertex])
     assert len(v_raw) == len(vt_raw), "Unequal number of mesh vertices to texture vertices."
-    xmax = max(x for x, y, z in v_raw)
-    ymax = max(y for x, y, z in v_raw)
-    v = [(xmax - x, ymax - y) for x, y, z in v_raw]
+    v = [[-x, y] for x, y, z in v_raw]
     w = texture.image.width
     h = texture.image.height
-    vt = [(w * x, h - h * y) for x, y in vt_raw]
-    return v, vt
-
-
-def get_patches(texture, vt):
+    vt = [[w * x, h * (1 - y)] for x, y in vt_raw]
     patches = []
-    n = int(len(vt) / 4)
-    for i in range(n):
-        a = i * 4
-        b = a + 4
-        xmin = min(x for x, y in vt[a:b])
-        xmax = max(x for x, y in vt[a:b])
-        ymin = min(y for x, y in vt[a:b])
-        ymax = max(y for x, y in vt[a:b])
-        patch = texture.image.crop((xmin, ymin, xmax, ymax))
+    canvas_width = 0
+    canvas_height = 0
+    for i in range(int(len(vt) / 4)):
+        patch = texture.image.crop((custom_round(vt[i * 4 + 1][0]), custom_round(vt[i * 4 + 1][1]), custom_round(vt[i * 4 + 3][0]), custom_round(vt[i * 4 + 3][1])))
+        canvas_width = max(canvas_width, v[i * 4][0] + patch.width)
+        canvas_height = max(canvas_height, v[i * 4 + 2][1])
         patches.append(patch)
-    return patches
-
-
-def stitch_patches(patches, v, mesh, size):
-    xmin = min(x for x, y in v)
-    xmax = max(x for x, y in v)
-    ymin = min(y for x, y in v)
-    ymax = max(y for x, y in v)
-    dx = 1 + xmax - xmin
-    dy = 1 + ymax - ymin
-    canvas = Image.new("RGBA", (custom_round(size["x"]), custom_round(size["y"])))
+    canvas = Image.new("RGBA", (custom_round(max(size["x"], canvas_width)), custom_round(max(size["y"], canvas_height))))
     for i, patch in enumerate(patches):
-        a = i * 4
-        b = a + 4
-        xmin = min(x for x, y in v[a:b])
-        ymin = min(y for x, y in v[a:b])
-        # yanusi_4_n
-        if canvas.width < patch.width + custom_round(
-            xmin + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["x"] - mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["x"]
-        ) or canvas.height < patch.height + custom_round(-ymin - patch.height + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["y"] + mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["y"]):
-            new_canvas = Image.new(
-                "RGBA",
-                (
-                    max(canvas.width, patch.width + custom_round(xmin + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["x"] - mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["x"])),
-                    max(canvas.height, patch.height + custom_round(-ymin - patch.height + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["y"] + mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["y"])),
-                ),
-            )
-            new_canvas.alpha_composite(canvas, (0, 0))
-            canvas = new_canvas
-        canvas.paste(
-            patch.transpose(Image.Transpose.FLIP_TOP_BOTTOM),
+        canvas.alpha_composite(
+            patch.convert("RGBA").transpose(Image.Transpose.FLIP_TOP_BOTTOM),
             (
-                custom_round(xmin + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["x"] - mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["x"]),
-                custom_round(-ymin - patch.height + mesh.read_typetree()["m_LocalAABB"]["m_Center"]["y"] + mesh.read_typetree()["m_LocalAABB"]["m_Extent"]["y"]),
+                custom_round(v[i * 4][0]),
+                custom_round(v[i * 4 + 2][1] - patch.height),
             ),
         )
     # qiabayefu_2_n
@@ -126,7 +89,6 @@ def stitch_patches(patches, v, mesh, size):
             new_bbox = (0, 0, size["x"], size["y"])
         canvas = canvas.crop(new_bbox)
     canvas = canvas.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-    del v
     del patches
     return canvas
 
@@ -395,9 +357,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
     for i in layers:
         layer = layers[i]
         if "mesh" in layer and "texture" in layer:
-            v, vt = get_vertices(layer["mesh"], layer["texture"])
-            patches = get_patches(layer["texture"], vt)
-            canvas = stitch_patches(patches, v, layer["mesh"], layer["size"])
+            canvas = get_canvas(layer["mesh"], layer["texture"], layer["size"])
             canvas = canvas.resize(
                 (
                     custom_round(canvas.width * ((layer["box"][2] - layer["box"][0]) or layer["size"]["x"]) / layer["size"]["x"]),
@@ -406,7 +366,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
             ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             canvases.append([canvas, layer])
         elif "texture" in layer:
-            canvas = layer["texture"].image
+            canvas = layer["texture"].image.convert("RGBA")
             # xiefeierde_3
             if "isImage" in layer:
                 canvas = canvas.resize(
@@ -454,7 +414,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
                     layer = canvaslayer[1]
                     canvas = canvaslayer[0]
                     if canvas == "face":
-                        canvas = face.image
+                        canvas = face.image.convert("RGBA")
                         # bolisi
                         canvas = canvas.resize(
                             (
@@ -467,7 +427,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
                         new_copy = Image.new("RGBA", (max(copy.width, canvas.width + custom_round(layer["box"][0])), max(copy.height, canvas.height + custom_round(layer["box"][1]))))
                         new_copy.alpha_composite(copy, (0, 0))
                         copy = new_copy
-                    copy.alpha_composite(canvas.convert("RGBA"), (custom_round(layer["box"][0]), custom_round(layer["box"][1])))
+                    copy.alpha_composite(canvas, (custom_round(layer["box"][0]), custom_round(layer["box"][1])))
                 copy = copy.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                 if False:
                     bbox = copy.getbbox()
