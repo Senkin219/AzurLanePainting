@@ -179,6 +179,8 @@ def get_layers(asset, textures, layers={}, id=None, parent=None, face=None):
         return
     if gameobject["m_Name"] == "shadow":
         return
+    if gameobject["m_Name"] == "Touch":
+        return
     if "m_Component" not in gameobject:
         return
 
