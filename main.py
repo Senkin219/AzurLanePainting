@@ -157,10 +157,11 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
         # print(gameobject["m_Name"],component.type.name,tree,"\n")
         if component.type.name == "RectTransform":
             entry["scale"] = tree["m_LocalScale"]
-            if parent == None:
+            if parent == None or entry["name"] == "layers":
                 entry["scale"] = {"x": 1, "y": 1, "z": 1}
             entry["delta"] = tree["m_SizeDelta"]
             entry["pivot"] = tree["m_Pivot"]
+            entry["rotation"] = tree["m_LocalRotation"]
 
             # calculate true m_LocalPosition
             anchormin = tree["m_AnchorMin"]
@@ -168,7 +169,7 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
             anchorpos = tree["m_AnchoredPosition"]
             if parent is None:
                 entry["bound"] = entry["delta"]
-                entry["position"] = {"x": entry["delta"]["x"] * entry["pivot"]["x"] + anchorpos["x"], "y": entry["delta"]["y"] * entry["pivot"]["y"] + anchorpos["y"]}
+                entry["position"] = {"x": entry["delta"]["x"] * entry["pivot"]["x"], "y": entry["delta"]["y"] * entry["pivot"]["y"]}
             else:
                 pl = layers[parent]
                 entry["bound"] = {
@@ -185,12 +186,12 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
         # bisimaiz
         if component.type.name == "Transform" and children == None and "m_Children" in tree:
             entry["scale"] = tree["m_LocalScale"]
-            if parent == None:
+            if parent == None or entry["name"] == "layers":
                 entry["scale"] = {"x": 1, "y": 1, "z": 1}
             entry["delta"] = {"x": 0, "y": 0}
             entry["pivot"] = {"x": 0.5, "y": 0.5}
+            entry["rotation"] = tree["m_LocalRotation"]
             entry["bound"] = {"x": 0, "y": 0}
-            entry["anchor"] = {"x": 0, "y": 0}
             entry["position"] = {"x": 0, "y": 0}
             children = tree["m_Children"]
         if "mMesh" in tree:
@@ -214,8 +215,9 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
             pass
         try:
             sprite = texas[sprite_id].read_typetree()
-            texture_id = sprite["m_RD"]["texture"]["m_PathID"]
-            entry["texture"] = texas[texture_id].read()
+            if "_shophx" not in sprite["m_Name"]:
+                texture_id = sprite["m_RD"]["texture"]["m_PathID"]
+                entry["texture"] = texas[texture_id].read()
         except:
             print(entry["name"], "missing texture file")
     if parent is not None:
@@ -256,42 +258,23 @@ def wrapped(painting_name, id_dict={}, debug=False):
             h = layer["bound"]["y"]
         if "parent" in layer:
             parent = layers[layer["parent"]]
-            # w *= parent['scale']['x']
-            # h *= parent['scale']['y']
-            x = x - parent["position"]["x"]
-            y = y - parent["position"]["y"]
+            w *= parent["scale"]["x"]
+            h *= parent["scale"]["y"]
+            # xiaotiane_2:hx
+            x = x * parent["scale"]["x"] - parent["position"]["x"]
+            y = y * parent["scale"]["y"] - parent["position"]["y"]
             return get_position_box(parent, x, y, w, h)
-        return -x, -y, w - x, h - y
+        return [-x, -y, w - x, h - y]
 
-    from math import inf
-
-    x0 = inf
-    y0 = inf
-    x1 = -inf
-    y1 = -inf
-    x2 = 0
-    y2 = 0
     for i in layers:
         layer = layers[i]
         if "size" in layer:
-            xi, yi, xj, yj = get_position_box(layer)
-            layer["box"] = [xi, yi, xj, yj]
-            x0 = min(x0, xi)
-            y0 = min(y0, yi)
-            x1 = max(x1, xj)
-            y1 = max(y1, yj)
-            if "parent" not in layer:
-                x2 = xi
-                y2 = yi
+            layer["box"] = get_position_box(layer)
     fix = [0, 0]
     rw_flag = False
     for i in layers:
         layer = layers[i]
         if "box" in layer:
-            layer["box"][0] -= x2
-            layer["box"][1] -= y2
-            layer["box"][2] -= x2
-            layer["box"][3] -= y2
             if "_rw" in layer["name"]:
                 fix[0] = custom_round(layer["box"][0]) - layer["box"][0]
                 fix[1] = custom_round(layer["box"][1]) - layer["box"][1]
@@ -321,13 +304,17 @@ def wrapped(painting_name, id_dict={}, debug=False):
             layer["box"][3] = custom_round(layer["box"][1]) + layer["box"][3] - layer["box"][1]
             layer["box"][0] = custom_round(layer["box"][0])
             layer["box"][1] = custom_round(layer["box"][1])
+    boxes = [layer["box"] for layer in layers.values() if "size" in layer]
+    if boxes:
+        x0, y0 = min(box[0] for box in boxes), min(box[1] for box in boxes)
+        x1, y1 = max(box[2] for box in boxes), max(box[3] for box in boxes)
     for i in layers:
         layer = layers[i]
         if "box" in layer:
-            layer["box"][0] = layer["box"][0] - (x0 - x2)
-            layer["box"][1] = layer["box"][1] - (y0 - y2)
-            layer["box"][2] = layer["box"][2] - (x0 - x2)
-            layer["box"][3] = layer["box"][3] - (y0 - y2)
+            layer["box"][0] = layer["box"][0] - x0
+            layer["box"][1] = layer["box"][1] - y0
+            layer["box"][2] = layer["box"][2] - x0
+            layer["box"][3] = layer["box"][3] - y0
             if debug:
                 print("box", layer["name"], layer["box"])
     try:
@@ -435,6 +422,16 @@ def wrapped(painting_name, id_dict={}, debug=False):
                             ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                         else:
                             continue
+                    # changdao_g:hx
+                    if layer["rotation"]["z"] != 0:
+                        angle_rad = 2 * math.atan2(layer["rotation"]["z"], layer["rotation"]["w"])
+                        w, h = canvas.size
+                        canvas = canvas.rotate(-math.degrees(angle_rad), expand=True, resample=Image.BICUBIC)
+                        new_w, new_h = canvas.size
+                        px, py = layer["pivot"]["x"] * w, layer["pivot"]["y"] * h
+                        dx, dy = px - w / 2, py - h / 2
+                        layer["box"][0] += px - (new_w / 2 + dx * math.cos(angle_rad) - dy * math.sin(angle_rad))
+                        layer["box"][1] += py - (new_h / 2 + dx * math.sin(angle_rad) + dy * math.cos(angle_rad))
                     # qiye_4
                     if copy.width < canvas.width + custom_round(layer["box"][0]) or copy.height < canvas.height + custom_round(layer["box"][1]):
                         new_copy = Image.new("RGBA", (max(copy.width, canvas.width + custom_round(layer["box"][0])), max(copy.height, canvas.height + custom_round(layer["box"][1]))))
@@ -455,6 +452,15 @@ def wrapped(painting_name, id_dict={}, debug=False):
         canvas = canvaslayer[0]
         if canvas == "face" or canvas == "face_sub":
             continue
+        if layer["rotation"]["z"] != 0:
+            angle_rad = 2 * math.atan2(layer["rotation"]["z"], layer["rotation"]["w"])
+            w, h = canvas.size
+            canvas = canvas.rotate(-math.degrees(angle_rad), expand=True, resample=Image.BICUBIC)
+            new_w, new_h = canvas.size
+            px, py = layer["pivot"]["x"] * w, layer["pivot"]["y"] * h
+            dx, dy = px - w / 2, py - h / 2
+            layer["box"][0] += px - (new_w / 2 + dx * math.cos(angle_rad) - dy * math.sin(angle_rad))
+            layer["box"][1] += py - (new_h / 2 + dx * math.sin(angle_rad) + dy * math.cos(angle_rad))
         if master.width < canvas.width + custom_round(layer["box"][0]) or master.height < canvas.height + custom_round(layer["box"][1]):
             new_master = Image.new("RGBA", (max(master.width, canvas.width + custom_round(layer["box"][0])), max(master.height, canvas.height + custom_round(layer["box"][1]))))
             new_master.alpha_composite(master, (0, 0))
