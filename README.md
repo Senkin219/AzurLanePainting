@@ -56,7 +56,5 @@ Working Directory/
 
 ## Known Issues
 
-- `jinluhao_hx` is missing the character texture.
-- Some paintings (e.g., `xiao_5` and `xiao_5_n`) show face positioning differences between versions with/without the background (consistent with in-game behavior).
 - Some assets contain both censored and uncensored versions of paintings (e.g., `npcshengluyisi_5_n`); the script only processes the first version encountered.
 

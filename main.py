@@ -9,6 +9,88 @@ from argparse import ArgumentParser
 
 root = "AssetBundles"
 
+# face offset, I think most of these also exist in the game, only test on CN assets
+face_fix = {
+    "longxiang_3": [-1, 0, -1, 0],
+    "u110_6_n": [0, -1, 0, -1],
+    "hamanii": [0, 0, 0, 0],
+    "xia": [0, 0, 0, 0],
+    "kelifulan_6_n": [0, -1, 0, -1],
+    "baerdimo_6_n": [0, -1, 0, -1],
+    "yalisangna_2_n": [0, -1, 0, -1],
+    "yalisangna_2_n_hx": [0, -1, 0, -1],
+    "xifujiniya": [0, 0, 0, 1],
+    "qiye_8_n": [0, -1, 0, -1],
+    "xiefeierde_3_n": [0, -1, 0, -1],
+    "xiefeierde_4": [0, 0, 0, -1],
+    "manchesite_3_n": [0, -1, 0, -1],
+    "ouruola_3": [0, 0, -1, 0],
+    "ouruola_h": [0, -1, 0, -1],
+    "safuke": [0, 0, 0, -1],
+    "safuke_hx": [0, 0, 0, -1],
+    "yueke_h_n": [0, -1, 0, -1],
+    "guanghui": [0, 0, -1, 0],
+    "shengli": [0, -1, 0, -1],
+    "chuixue_3": [0, 0, 0, 0],
+    "shenxue_3_n": [0, -1, 0, -1],
+    "xiao_4_n": [0, -1, 0, -1],
+    "xiao_5_n": [0, -1, 0, -1],
+    "jiahe_4_n": [0, -1, 0, -1],
+    "dafeng_5": [-1, 0, -1, 0],
+    "xipeierhaijunshangjiang_3_n": [0, -1, 0, -1],
+    "ougen": [0, 0, 0, 0],
+    "ougen_hx": [0, 0, 0, 0],
+    "bisimai_h_n": [0, -5, 0, -5],
+    "huonululu_5_n": [0, -1, 0, -1],
+    "dachao_2": [0, 0, 1, 0],
+    "lemaer_4_n": [0, -1, 0, -1],
+    "mingniabolisi": [0, 0, 0, -1],
+    "mingniabolisi_hx": [0, 0, 0, -1],
+    "mingniabolisi_3": [-1, 0, -1, 0],
+    "mingniabolisi_3_n": [-1, 0, -1, 0],
+    "heizewude": [0, 0, 0, 0],
+    "u73_4_n": [0, -1, 0, -1],
+    "edu": [0, 0, 0, 0],
+    "shuixingjinian_3_n": [0, -1, 0, -1],
+    "qiabayefu_2": [0, 0, 0, -1],
+    "qiabayefu_2_n": [0, 0, 0, -1],
+    "linuo_5_n": [0, -1, 0, -1],
+    "changbo_4_n": [0, -1, 0, -1],
+    "wokelan_2_n": [0, -1, 0, -1],
+    "hemin_4": [-1, 0, -1, 0],
+    "xiongye_3_n": [0, -1, 0, -1],
+    "wenqinzuojiaobeidi": [1, 0, 1, 0],
+    "talin_2_n": [0, -1, 0, -1],
+    "moermansike": [0, -1, 0, -1],
+    "moermansike_n": [0, -1, 0, -1],
+    "weineituo_hx": [0, 0, -1, 0],
+    "weineituo_n_hx": [0, 0, -1, 0],
+    "weineituo_wjz_hx": [0, 0, -1, 0],
+    "tuolichaili_2_n": [0, -1, 0, -1],
+    "tikangdeluojia_2": [0, -1, 0, -1],
+    "tikangdeluojia_2_hx": [0, -1, 0, -1],
+    "tikangdeluojia_2_n": [0, -1, 0, -1],
+    "tikangdeluojia_2_n_hx": [0, -1, 0, -1],
+    "jiujinshan_4_n": [0, -1, 0, -1],
+    "boyixi_5_n": [0, -1, 0, -1],
+    "kalvbudisi_3_n": [0, -1, 0, -1],
+    "fuerjia_2_n": [0, -1, 0, -1],
+    "yueke_ger_3_n": [0, -1, 0, -1],
+    "texiusi_2_n": [0, 1, 0, -2],
+    "xufulun_2_n": [0, -1, 0, -1],
+    "xiusidunii_2_n": [0, -1, 0, -1],
+    "jinluhao_2_n": [0, -1, 0, -1],
+    "songdiao_2_n": [0, -1, 0, -1],
+    "huanchang_2_n": [-1, 0, -1, 0],
+    "jianwu_3_n": [0, -1, 0, -1],
+    "bailong_2_n": [0, -1, 0, -1],
+    "safuke_xinshou": [0, 0, 0, -1],
+    "chicheng_alter": [0, 0, -1, 0],
+    "chicheng_alter_n": [0, 0, -1, 0],
+    "rightchicheng_alter": [0, 0, -1, 0],
+    "rightchicheng_alter_n": [0, 0, -1, 0],
+}
+
 
 def get_id_dict():
     painting2id = {}
@@ -234,6 +316,12 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
 
 
 def wrapped(painting_name, id_dict={}, debug=False):
+    if "_tex" in painting_name:
+        print('Please enter the filename without the "_tex" suffix.')
+        return
+    if "jinluhao_hx" in painting_name:
+        print("skip", painting_name)
+        return
     print("\nstart", painting_name)
 
     depmap = get_dependencies()
@@ -250,7 +338,6 @@ def wrapped(painting_name, id_dict={}, debug=False):
     get_layers(env.assets[0], textures, layers)
 
     def get_position_box(layer, x=None, y=None, w=None, h=None):
-        # scale: xianggelila_3
         if x is None or y is None:
             x = layer["bound"]["x"] * layer["pivot"]["x"] - layer["position"]["x"]
             y = layer["bound"]["y"] * layer["pivot"]["y"] - layer["position"]["y"]
@@ -258,9 +345,9 @@ def wrapped(painting_name, id_dict={}, debug=False):
             h = layer["bound"]["y"]
         if "parent" in layer:
             parent = layers[layer["parent"]]
+            # xiaotiane_2:hx
             w *= parent["scale"]["x"]
             h *= parent["scale"]["y"]
-            # xiaotiane_2:hx
             x = x * parent["scale"]["x"] - parent["position"]["x"]
             y = y * parent["scale"]["y"] - parent["position"]["y"]
             return get_position_box(parent, x, y, w, h)
@@ -296,10 +383,10 @@ def wrapped(painting_name, id_dict={}, debug=False):
         layer = layers[i]
         if "box" in layer:
             if layer["name"] == "face":
-                layer["box"][0] += fix[0]
-                layer["box"][1] += fix[1]
-                layer["box"][2] += fix[0]
-                layer["box"][3] += fix[1]
+                layer["box"][0] += fix[0] + face_fix.get(painting_name, [0, 0, 0, 0])[0]
+                layer["box"][1] += fix[1] + face_fix.get(painting_name, [0, 0, 0, 0])[1]
+                layer["box"][2] += fix[0] + face_fix.get(painting_name, [0, 0, 0, 0])[2]
+                layer["box"][3] += fix[1] + face_fix.get(painting_name, [0, 0, 0, 0])[3]
             layer["box"][2] = custom_round(layer["box"][0]) + layer["box"][2] - layer["box"][0]
             layer["box"][3] = custom_round(layer["box"][1]) + layer["box"][3] - layer["box"][1]
             layer["box"][0] = custom_round(layer["box"][0])
@@ -388,14 +475,14 @@ def wrapped(painting_name, id_dict={}, debug=False):
         for value in faces.assets[0].values():
             if value.type.name == "Texture2D":
                 sub = value.read()
-                if "_sub" in sub.name:
-                    face_sub[sub.name] = sub
+                if "_sub" in sub.m_Name:
+                    face_sub[sub.m_Name] = sub
         for value in faces.assets[0].values():
             if value.type.name == "Texture2D":
                 face = value.read()
-                if face.name == "0":
+                if face.m_Name == "0":
                     face0_flag = True
-                if ("_sub" in face.name) or (debug and face.name != "1"):
+                if ("_sub" in face.m_Name) or (debug and face.m_Name != "1"):
                     continue
                 copy = master.copy()
                 for canvaslayer in canvases:
@@ -412,8 +499,8 @@ def wrapped(painting_name, id_dict={}, debug=False):
                         ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                     # xiaoyue_2
                     elif canvas == "face_sub":
-                        if face_sub.get(face.name + "_sub"):
-                            canvas = face_sub.get(face.name + "_sub").image.convert("RGBA")
+                        if face_sub.get(face.m_Name + "_sub"):
+                            canvas = face_sub.get(face.m_Name + "_sub").image.convert("RGBA")
                             canvas = canvas.resize(
                                 (
                                     custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
@@ -443,7 +530,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
                     bbox = copy.getbbox()
                     if bbox:
                         copy = copy.crop(bbox)
-                copy.save("output2/{}.png".format(filename + "." + face.name))
+                copy.save("output2/{}.png".format(filename + "." + face.m_Name))
     else:
         print(painting_name, "no face found\n")
         face0_flag = True
