@@ -188,7 +188,8 @@ def get_primary(asset):
                 break
         assert found, "No AssetBundle found."
     bundletree = bundle.read_typetree()
-    primaryid = bundletree["m_Container"][0][1]["asset"]["m_PathID"]
+    # haitian_5
+    primaryid = bundletree["m_Container"][-1][1]["asset"]["m_PathID"]
     primary = asset.objects[primaryid]
     return primaryid, primary.read_typetree()
 
