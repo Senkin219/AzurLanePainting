@@ -8,8 +8,8 @@ import json
 from argparse import ArgumentParser
 
 root = "AssetBundles"
-
-# face offset, I think most of these also exist in the game, only test on CN assets
+saveMesh = False
+# face offset, I think most of these also exist in the game, only test on CN assets (iOS: $paintinghash$594$3797e24395a3763b)
 face_fix = {
     "longxiang_3": [-1, 0, -1, 0],
     "u110_6_n": [0, -1, 0, -1],
@@ -129,10 +129,12 @@ def custom_round(n):
         return round(n)
 
 
-def get_canvas(mesh, texture, size):
+def get_canvas(layer):
+    texture = layer["texture"]
+    size = layer["size"]
     v_raw = []
     vt_raw = []
-    for line in mesh.export().splitlines():
+    for line in layer["mesh"].export().splitlines():
         if line.startswith("v "):
             vertex = line.split(" ")[1:]
             v_raw.append([int(n) for n in vertex])
@@ -171,6 +173,9 @@ def get_canvas(mesh, texture, size):
             new_bbox = (0, 0, size["x"], size["y"])
         canvas = canvas.crop(new_bbox)
     canvas = canvas.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    if saveMesh:
+        os.makedirs(Path("output2", "mesh"), exist_ok=True)
+        canvas.save(Path("output2", "mesh", layer["name"] + ".png"))
     return canvas
 
 
@@ -424,7 +429,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
     for i in layers:
         layer = layers[i]
         if "mesh" in layer and "texture" in layer:
-            canvas = get_canvas(layer["mesh"], layer["texture"], layer["size"])
+            canvas = get_canvas(layer)
             canvas = canvas.resize(
                 (
                     custom_round(canvas.width * ((layer["box"][2] - layer["box"][0]) or layer["size"]["x"]) / layer["size"]["x"]),
