@@ -307,7 +307,9 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
                 texture_id = sprite["m_RD"]["texture"]["m_PathID"]
                 entry["texture"] = texas[texture_id].read()
         except:
-            print(entry["name"], "missing texture file")
+            # do not report missing touming_tex
+            if sprite_id not in [-1941817362335269276, -627025325541918145]:
+                print(entry["name"], "missing texture file")
     if parent is not None:
         entry["parent"] = parent
 
@@ -325,8 +327,7 @@ def wrapped(painting_name, id_dict={}, debug=False):
     if "_tex" in painting_name:
         print('Please enter the filename without the "_tex" suffix.')
         return
-    if "jinluhao_hx" in painting_name:
-        print("skip", painting_name)
+    if painting_name in ["mat", "mat_v1f1", "jinluhao_hx", "jinluhao_n_hx", "dafeng_6_shophx", "haifeng_3_n_rw"]:
         return
     print("\nstart", painting_name)
 

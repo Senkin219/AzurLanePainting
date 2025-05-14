@@ -14,9 +14,10 @@ Working Directory/
 ├── AssetBundles/
 │   ├── dependencies
 │   ├── painting/
-│   │   ├── changfeng_2_n         # Example painting asset
-│   │   ├── changfeng_2_n_tex     # Corresponding texture asset
-│   │   ├── touming_tex           # Transparency texture (recommended)
+│   │   ├── changfeng_2           # Example painting asset
+│   │   ├── changfeng_2_tex       # Corresponding texture asset
+│   │   ├── changfeng_2_rw_tex    # Corresponding texture asset
+│   │   ├── changfeng_2_bj_tex    # Corresponding texture asset
 │   ├── paintingface/
 │   │   └── changfeng_2           # Face asset for the painting
 ├── ship_skin_template.json       # Optional, for structured output
@@ -28,7 +29,6 @@ Working Directory/
    - Store painting assets under `AssetBundles/painting`.
    - Store face assets under `AssetBundles/paintingface`.
    - Ensure the `dependencies` file is included in the `AssetBundles` directory.
-   - It is recommended to also include the `touming_tex` file in `AssetBundles/painting` as it is used in many paintings.
 
 ### Running the Script
 
@@ -41,18 +41,13 @@ Working Directory/
 - **To process a specific file:**
   
   ```bash
-  python main.py changfeng_2_n
+  python main.py changfeng_2
   ```
 
 ### Output
 
 - Reconstructed paintings are saved in the `output2` folder.
 - To generate numbered filenames, add `ship_skin_template.json`, `ship_data_group.json`, and `secretary_special_ship.json` to your working directory. These files can be found [here](https://github.com/AzurLaneTools/AzurLaneData/tree/main/CN/ShareCfg).
-
-## Tips
-
-- The iOS client typically offers higher quality for `painting` assets.
-- The quality of `paintingface` assets varies between platforms; some are better on iOS, while others on Android.
 
 ## Known Issues
 
