@@ -130,7 +130,7 @@ def custom_round(n):
 
 
 def get_canvas(layer):
-    texture = layer["texture"]
+    texture = layer["texture"].image
     size = layer["size"]
     v_raw = []
     vt_raw = []
@@ -143,14 +143,14 @@ def get_canvas(layer):
             vt_raw.append([float(n) for n in vertex])
     assert len(v_raw) == len(vt_raw), "Unequal number of mesh vertices to texture vertices."
     v = [[-x, y] for x, y, z in v_raw]
-    w = texture.image.width
-    h = texture.image.height
+    w = texture.width
+    h = texture.height
     vt = [[w * x, h * (1 - y)] for x, y in vt_raw]
     patches = []
     canvas_width = 0
     canvas_height = 0
     for i in range(int(len(vt) / 4)):
-        patch = texture.image.crop((custom_round(vt[i * 4 + 1][0]), custom_round(vt[i * 4 + 1][1]), custom_round(vt[i * 4 + 3][0]), custom_round(vt[i * 4 + 3][1])))
+        patch = texture.crop((custom_round(vt[i * 4 + 1][0]), custom_round(vt[i * 4 + 1][1]), custom_round(vt[i * 4 + 3][0]), custom_round(vt[i * 4 + 3][1])))
         canvas_width = max(canvas_width, v[i * 4][0] + patch.width)
         canvas_height = max(canvas_height, v[i * 4 + 2][1])
         patches.append(patch)
@@ -308,7 +308,7 @@ def get_layers(asset, textures, layers={}, id=None, parent=None):
                 entry["texture"] = texas[texture_id].read()
         except:
             # do not report missing touming_tex
-            if sprite_id not in [-1941817362335269276, -627025325541918145]:
+            if sprite_id not in [-1941817362335269276, -627025325541918145, 0]:
                 print(entry["name"], "missing texture file")
     if parent is not None:
         entry["parent"] = parent
