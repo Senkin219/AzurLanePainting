@@ -89,6 +89,8 @@ face_fix = {
     "chicheng_alter_n": [0, 0, -1, 0],
     "rightchicheng_alter": [0, 0, -1, 0],
     "rightchicheng_alter_n": [0, 0, -1, 0],
+    "bulunnusi_3": [-1, 0, -1, 0],
+    "bulunnusi_3_n": [-1, 0, -1, 0],
 }
 
 
