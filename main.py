@@ -437,7 +437,8 @@ def wrapped(painting_name, id_dict={}, debug=False):
                 (
                     custom_round(canvas.width * ((layer["box"][2] - layer["box"][0]) or layer["size"]["x"]) / layer["size"]["x"]),
                     custom_round(canvas.height * ((layer["box"][3] - layer["box"][1]) or layer["size"]["y"]) / layer["size"]["y"]),
-                )
+                ),
+                Image.BILINEAR,
             ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             canvases.append([canvas, layer])
         elif "texture" in layer:
@@ -448,14 +449,16 @@ def wrapped(painting_name, id_dict={}, debug=False):
                     (
                         custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
                         custom_round((layer["box"][3] - layer["box"][1]) or canvas.height),
-                    )
+                    ),
+                    Image.BILINEAR,
                 ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             else:
                 canvas = canvas.resize(
                     (
                         custom_round(canvas.width * ((layer["box"][2] - layer["box"][0]) or layer["size"]["x"]) / layer["size"]["x"]),
                         custom_round(canvas.height * ((layer["box"][3] - layer["box"][1]) or layer["size"]["y"]) / layer["size"]["y"]),
-                    )
+                    ),
+                    Image.BILINEAR,
                 ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             canvases.append([canvas, layer])
         elif layer["name"] == "face":
@@ -504,7 +507,8 @@ def wrapped(painting_name, id_dict={}, debug=False):
                             (
                                 custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
                                 custom_round((layer["box"][3] - layer["box"][1]) or canvas.height),
-                            )
+                            ),
+                            Image.BILINEAR,
                         ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                     # xiaoyue_2
                     elif canvas == "face_sub":
@@ -514,7 +518,8 @@ def wrapped(painting_name, id_dict={}, debug=False):
                                 (
                                     custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
                                     custom_round((layer["box"][3] - layer["box"][1]) or canvas.height),
-                                )
+                                ),
+                            Image.BILINEAR,
                             ).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                         else:
                             continue
