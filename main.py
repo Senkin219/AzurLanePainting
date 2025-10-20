@@ -443,6 +443,9 @@ def wrapped(painting_name, id_dict={}, debug=False):
             canvases.append([canvas, layer])
         elif "texture" in layer:
             canvas = layer["texture"].image.convert("RGBA")
+            if saveMesh:
+                os.makedirs(Path("output2", "mesh"), exist_ok=True)
+                canvas.save(Path("output2", "mesh", layer["name"] + ".png"))
             canvas = canvas.resize(
                 (
                     custom_round((layer["box"][2] - layer["box"][0]) or canvas.width),
